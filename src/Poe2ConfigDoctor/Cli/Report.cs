@@ -26,16 +26,22 @@ public static class Report
         if (s.DeviceLocalVramGb is { } gb)
             Console.WriteLine($"  VRAM      : {gb:0.0} GB (DeviceLocal heap)");
 
-        var t = s.Total;
-        Console.WriteLine($"  Issues    : OOM={t.VramOom}  DeviceRemoved={t.Dx12DeviceRemoved}  " +
-                          $"PipelineFail={t.PipelineGenerationFailed}  VertexLayout={t.ShaderVertexLayout}  " +
-                          $"Disconnect={t.AbnormalDisconnect}  (whole log)");
+        WriteIssueLine("  Issues    ", s.Total, "whole log");
+        if (!ReferenceEquals(s.Scope, s.Total))
+            WriteIssueLine("  In scope  ", s.Scope, s.ScopeName);
         Console.WriteLine();
     }
 
-    public static void AllClear()
+    private static void WriteIssueLine(string label, IssueCounts c, string scope)
     {
-        Success("No known issues found in the latest session. Nothing to change.");
+        Console.WriteLine($"{label}: OOM={c.VramOom}  DeviceRemoved={c.Dx12DeviceRemoved}  " +
+                          $"PipelineFail={c.PipelineGenerationFailed}  VertexLayout={c.ShaderVertexLayout}  " +
+                          $"Disconnect={c.AbnormalDisconnect}  ({scope})");
+    }
+
+    public static void AllClear(string scopeName)
+    {
+        Success($"No known issues found in the {scopeName}. Nothing to change.");
     }
 
     public static void Findings(IReadOnlyList<Finding> findings)

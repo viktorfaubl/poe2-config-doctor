@@ -52,8 +52,26 @@ if (!File.Exists(configPath))
 
 Report.Title("PoE2 Config Doctor");
 
-// 1. Analyze the log.
-var scan = new LogAnalyzer().Analyze(logPath, options.TailLines);
+// 1. Analyze the log, then pick the scope the rules evaluate.
+DateTime? windowStart = (options.AllHistory || options.SessionOnly) ? null : DateTime.Now - options.Since;
+var scan = new LogAnalyzer().Analyze(logPath, windowStart, options.TailLines);
+
+if (options.AllHistory)
+{
+    scan.Scope = scan.Total;
+    scan.ScopeName = "whole log";
+}
+else if (options.SessionOnly)
+{
+    scan.Scope = scan.LatestSession;
+    scan.ScopeName = "latest session";
+}
+else
+{
+    scan.Scope = scan.Window;
+    scan.ScopeName = $"last {FormatDuration(options.Since)}";
+}
+
 Report.LogSummary(scan);
 
 // 2. Run the rules against the log + current config.
@@ -68,7 +86,7 @@ var findings = rules
 
 if (findings.Count == 0)
 {
-    Report.AllClear();
+    Report.AllClear(scan.ScopeName);
     return ExitOk;
 }
 
@@ -123,6 +141,12 @@ Console.WriteLine();
 Report.Success($"Applied {applied} change(s) to {configPath}");
 Report.Info("Launch the game on the new settings — do not 'Apply' in the in-game menu, or it rewrites the config.");
 return ExitOk;
+
+static string FormatDuration(TimeSpan t) =>
+    t.TotalDays >= 1 && t.TotalDays % 1 == 0 ? $"{t.TotalDays:0}d"
+    : t.TotalHours >= 1 && t.TotalHours % 1 == 0 ? $"{t.TotalHours:0}h"
+    : t.TotalDays >= 1 ? $"{t.TotalDays:0.#}d"
+    : $"{t.TotalMinutes:0}m";
 
 static bool IsGameRunning()
 {

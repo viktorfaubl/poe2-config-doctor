@@ -14,9 +14,15 @@ so it carries no anti-cheat risk.
 | **DX12-CRASH** | `[D3D12] Device Removed` (DXGI_ERROR_DEVICE_REMOVED), `Pipeline generation failed`, `Shader uses incorrect vertex layout`, `Abnormal disconnect` while on DirectX 12 | `renderer_type` → `Vulkan` |
 | **VRAM-OOM** | `[STREAMLINE] Error eWarnOutOfVRAM` (VRAM budget exceeded) | Trims the biggest VRAM consumers: `texture_quality` → Medium, `upscale_resolution` → Quality, `shadow_type` → Medium, `hdr` → false (each only if currently higher) |
 
-Detection is based on the **latest session** (everything after the last `[STARTUP] Game Start`),
-so it reflects how the game is configured right now. Whole-log issue totals are still reported
-for context.
+Detection is based on a **rolling time window — the last 3 days by default** — so a single
+trivial session (e.g. loading a hideout and quitting) can't hide problems from earlier in the
+week. Whole-log totals are always reported alongside the in-scope counts for context.
+
+Scope can be changed:
+
+- `--since <dur>` — use a different window, e.g. `--since 12h`, `--since 7d`
+- `--all` — consider the entire log
+- `--session` — consider only the latest game session
 
 ## Usage
 
@@ -25,6 +31,9 @@ poe2doctor [options]
 
   --log <path>      Path to Client.txt        (auto-detected if omitted)
   --config <path>   Path to poe2_production_Config.ini (auto-detected if omitted)
+  --since <dur>     Consider issues within this window: 3d, 72h, 90m (default: 3d)
+  --all             Consider the entire log, ignoring the time window
+  --session         Consider only the latest game session
   --apply           Write the proposed changes (default: dry run, shows changes only)
   --tail <N>        Scan only the last N lines of the log (default: whole file)
   --no-backup       Do not create a .bak before writing
@@ -70,18 +79,19 @@ dotnet build -c Release
 dotnet run -c Release --project src/Poe2ConfigDoctor -- --help
 ```
 
-The `samples/` folder contains a fixture log + config that trigger both rules:
+The `samples/` folder contains a fixture log + config that trigger both rules
+(use `--all` so the fixture's dates are always in scope):
 
 ```sh
 dotnet run -c Release --project src/Poe2ConfigDoctor -- \
-  --log samples/sample_Client.txt --config samples/sample_Config.ini
+  --log samples/sample_Client.txt --config samples/sample_Config.ini --all
 ```
 
 ## How it works
 
 1. **`LogAnalyzer`** streams the log once, tallying the known failure signatures for the
-   whole file and for the latest session, and pulls out the renderer in use and the
-   DeviceLocal VRAM size.
+   whole file, the latest session, and a time window, and pulls out the renderer in use and
+   the DeviceLocal VRAM size.
 2. **Rules** (`IRule`) each inspect the scan plus the current config and, if their condition
    holds, return a `Finding` with proposed `ConfigChange`s and a plain-language reason.
 3. **`IniConfig`** applies changes line-by-line, preserving comments, ordering, and unrelated

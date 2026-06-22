@@ -18,6 +18,15 @@ public sealed class Options
     /// <summary>Apply even if the game appears to be running (it will clobber the file on exit).</summary>
     public bool Force { get; private set; }
 
+    /// <summary>How far back to consider issues. Default: 3 days.</summary>
+    public TimeSpan Since { get; private set; } = TimeSpan.FromDays(3);
+
+    /// <summary>Consider the entire log, ignoring the time window.</summary>
+    public bool AllHistory { get; private set; }
+
+    /// <summary>Consider only the latest session (everything after the last Game Start).</summary>
+    public bool SessionOnly { get; private set; }
+
     public bool ShowHelp { get; private set; }
     public string? Error { get; private set; }
 
@@ -40,6 +49,17 @@ public sealed class Options
                     break;
                 case "--force":
                     o.Force = true;
+                    break;
+                case "--all":
+                    o.AllHistory = true;
+                    break;
+                case "--session":
+                    o.SessionOnly = true;
+                    break;
+                case "--since":
+                    if (!TryNext(args, ref i, out var d) || !TryParseDuration(d, out var span))
+                    { o.Error = "--since requires a duration like 3d, 72h, or 90m."; return o; }
+                    o.Since = span;
                     break;
                 case "--log":
                     if (!TryNext(args, ref i, out var lp)) { o.Error = "--log requires a path."; return o; }
@@ -73,6 +93,29 @@ public sealed class Options
         return false;
     }
 
+    /// <summary>Parses "3d" / "72h" / "90m", or a bare number treated as days.</summary>
+    public static bool TryParseDuration(string text, out TimeSpan span)
+    {
+        span = default;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+
+        char unit = char.ToLowerInvariant(text[^1]);
+        var hasUnit = unit is 'd' or 'h' or 'm';
+        var number = hasUnit ? text[..^1] : text;
+
+        if (!double.TryParse(number, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var value) || value <= 0)
+            return false;
+
+        span = unit switch
+        {
+            'h' => TimeSpan.FromHours(value),
+            'm' => TimeSpan.FromMinutes(value),
+            _ => TimeSpan.FromDays(value), // 'd' or no unit
+        };
+        return true;
+    }
+
     public static void PrintHelp()
     {
         Console.WriteLine(
@@ -85,14 +128,18 @@ USAGE:
 OPTIONS:
   --log <path>      Path to Client.txt        (auto-detected if omitted)
   --config <path>   Path to poe2_production_Config.ini (auto-detected if omitted)
+  --since <dur>     Consider issues within this window: 3d, 72h, 90m (default: 3d)
+  --all             Consider the entire log, ignoring the time window
+  --session         Consider only the latest game session
   --apply           Write the proposed changes (default: dry run, shows changes only)
   --tail <N>        Scan only the last N lines of the log (default: whole file)
   --no-backup       Do not create a .bak before writing
   --force           Apply even if the game appears to be running
   -h, --help        Show this help
 
-By default the tool only reports what it would change. Re-run with --apply to write.
-Close the game before applying: it overwrites the config on exit.
+By default the tool looks at issues from the last 3 days. It only reports what it
+would change; re-run with --apply to write. Close the game before applying: it
+overwrites the config on exit.
 """);
     }
 }

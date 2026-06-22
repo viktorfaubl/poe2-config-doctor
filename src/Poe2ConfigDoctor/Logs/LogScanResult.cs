@@ -28,4 +28,16 @@ public sealed class LogScanResult
 
     /// <summary>Counts since the most recent "Game Start" — i.e. the latest session only.</summary>
     public IssueCounts LatestSession { get; init; } = new();
+
+    /// <summary>Counts within the time window the analyzer was given (e.g. the last 3 days).</summary>
+    public IssueCounts Window { get; init; } = new();
+
+    /// <summary>The earliest timestamp the window includes (null = whole log).</summary>
+    public DateTime? WindowStart { get; init; }
+
+    /// <summary>The counts the rules should evaluate, chosen by the caller (defaults to the window).</summary>
+    public IssueCounts Scope { get; set; } = new();
+
+    /// <summary>Human label for the scope, e.g. "last 3d", "latest session", "whole log".</summary>
+    public string ScopeName { get; set; } = "selected scope";
 }

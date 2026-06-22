@@ -15,7 +15,7 @@ public sealed class VramOomRule : IRule
 
     public Finding? Evaluate(LogScanResult log, IniConfig config)
     {
-        int oom = log.LatestSession.VramOom;
+        int oom = log.Scope.VramOom;
         if (oom == 0)
             return null;
 
@@ -25,7 +25,7 @@ public sealed class VramOomRule : IRule
             RuleId = Id,
             Title = "Out of VRAM (eWarnOutOfVRAM) — graphics memory budget exceeded",
             Severity = Severity.Critical,
-            Detail = $"{oom}x eWarnOutOfVRAM in the latest session{budget}. "
+            Detail = $"{oom}x eWarnOutOfVRAM in the {log.ScopeName}{budget}. "
                 + "VRAM spill to system memory is what causes the stutter and freezes; "
                 + "trimming the biggest consumers brings the game back under budget.",
         };

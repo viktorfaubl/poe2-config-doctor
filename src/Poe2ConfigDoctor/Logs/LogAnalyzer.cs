@@ -12,10 +12,12 @@ public sealed partial class LogAnalyzer
     private const string GameStartMarker = "[STARTUP] Game Start";
     private const string RendererMarker = "[RENDER] Starting device:";
 
-    public LogScanResult Analyze(string path, int tailLines = 0)
+    /// <param name="windowStart">Earliest timestamp to include in the windowed counts; null = whole log.</param>
+    public LogScanResult Analyze(string path, DateTime? windowStart = null, int tailLines = 0)
     {
         var total = new IssueCounts();
         var latest = new IssueCounts();
+        var window = new IssueCounts();
 
         long lineCount = 0;
         int sessions = 0;
@@ -34,6 +36,9 @@ public sealed partial class LogAnalyzer
                 firstTs ??= ts;
                 lastTs = ts;
             }
+
+            // Effective time for this line (carry the last seen timestamp for lines without one).
+            bool inWindow = windowStart is null || (lastTs is { } e && e >= windowStart);
 
             // A new session resets the "latest session" counters.
             if (line.Contains(GameStartMarker, StringComparison.Ordinal))
@@ -57,12 +62,14 @@ public sealed partial class LogAnalyzer
             if (line.Contains("eWarnOutOfVRAM", StringComparison.Ordinal))
             {
                 total.VramOom++; latest.VramOom++;
+                if (inWindow) window.VramOom++;
                 lastOom = ts ?? lastOom;
             }
 
             if (line.Contains("[D3D12] Device Removed", StringComparison.Ordinal))
             {
                 total.Dx12DeviceRemoved++; latest.Dx12DeviceRemoved++;
+                if (inWindow) window.Dx12DeviceRemoved++;
                 lastDeviceRemoved = ts ?? lastDeviceRemoved;
                 var m = ReasonRegex().Match(line);
                 if (m.Success) lastDeviceRemovedReason = m.Groups["reason"].Value;
@@ -71,22 +78,29 @@ public sealed partial class LogAnalyzer
             if (line.Contains("Pipeline generation failed", StringComparison.Ordinal))
             {
                 total.PipelineGenerationFailed++; latest.PipelineGenerationFailed++;
+                if (inWindow) window.PipelineGenerationFailed++;
             }
 
             if (line.Contains("Shader uses incorrect vertex layout", StringComparison.Ordinal))
             {
                 total.ShaderVertexLayout++; latest.ShaderVertexLayout++;
+                if (inWindow) window.ShaderVertexLayout++;
             }
 
             if (line.Contains("Abnormal disconnect", StringComparison.Ordinal))
             {
                 total.AbnormalDisconnect++; latest.AbnormalDisconnect++;
+                if (inWindow) window.AbnormalDisconnect++;
             }
         }
 
         // If the log had no "Game Start" marker, the latest session is effectively the whole file.
         if (sessions == 0)
             latest = total;
+
+        // No window restriction means the window is the whole log.
+        if (windowStart is null)
+            window = total;
 
         return new LogScanResult
         {
@@ -103,6 +117,8 @@ public sealed partial class LogAnalyzer
             LastDeviceRemovedAt = lastDeviceRemoved,
             Total = total,
             LatestSession = latest,
+            Window = window,
+            WindowStart = windowStart,
         };
     }
 
