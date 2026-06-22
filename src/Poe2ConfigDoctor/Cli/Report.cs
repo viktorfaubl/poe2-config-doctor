@@ -1,3 +1,4 @@
+using Poe2ConfigDoctor.Config;
 using Poe2ConfigDoctor.Logs;
 using Poe2ConfigDoctor.Maintenance;
 using Poe2ConfigDoctor.Models;
@@ -107,6 +108,27 @@ public static class Report
         Success($"Shader cache cleared: {totalFiles:n0} files, {totalMb:0.0} MB across {results.Count} folder(s) — rebuilds on next launch.");
         foreach (var r in results)
             Console.WriteLine($"    {r.Path}  ({r.FilesDeleted:n0} files)");
+    }
+
+    public static void BackupList(string configPath, IReadOnlyList<BackupInfo> backups)
+    {
+        Console.WriteLine();
+        var dir = BackupManager.BackupDir(configPath);
+        if (backups.Count == 0)
+        {
+            Info($"No backups found in {dir}.");
+            return;
+        }
+
+        WriteLine($"Backups ({backups.Count}) in {dir}", ConsoleColor.White);
+        for (int i = 0; i < backups.Count; i++)
+        {
+            var b = backups[i];
+            var tag = i == 0 ? "  (most recent)" : "";
+            Console.WriteLine($"  {b.Timestamp:yyyy-MM-dd HH:mm:ss}  {Path.GetFileName(b.Path)}{tag}");
+        }
+        Console.WriteLine();
+        Info("Restore the most recent with --restore, or a specific one with --restore <filename>.");
     }
 
     public static void Success(string text) => WriteLine(text, ConsoleColor.Green);

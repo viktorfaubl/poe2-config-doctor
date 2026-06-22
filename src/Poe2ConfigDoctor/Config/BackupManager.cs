@@ -56,6 +56,23 @@ public static class BackupManager
 
     public static BackupInfo? Latest(string configPath) => List(configPath).FirstOrDefault();
 
+    /// <summary>
+    /// Resolves a restore target given as a full path, a bare filename in the backup folder, or a
+    /// filename match among the listed backups. Returns null if nothing matches.
+    /// </summary>
+    public static BackupInfo? Resolve(string configPath, string target)
+    {
+        if (File.Exists(target))
+            return new BackupInfo(Path.GetFullPath(target), StampOf(target));
+
+        var inDir = Path.Combine(BackupDir(configPath), target);
+        if (File.Exists(inDir))
+            return new BackupInfo(inDir, StampOf(inDir));
+
+        return List(configPath)
+            .FirstOrDefault(b => Path.GetFileName(b.Path).Equals(target, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>The creation time encoded in the backup's filename, falling back to its last-write time.</summary>
     private static DateTime StampOf(string path)
     {

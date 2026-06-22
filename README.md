@@ -53,12 +53,17 @@ not-yet-applied baseline items) and writes nothing. Re-run with `--apply` to mak
 
 **Backups & restore (safety net).** Before any write, the config is copied to a timestamped backup in
 a `poe2doctor-backups/` folder next to the config (unless `--no-backup`). Backups are never
-overwritten, so the original always survives. To roll back, run `--restore` — it restores the most
-recent backup over the config (snapshotting the current file first, so the restore is itself undoable):
+overwritten, so the original always survives. To roll back, run `--restore` — it restores a backup
+over the config (snapshotting the current file first, so the restore is itself undoable):
 
 ```sh
-poe2doctor --restore        # restore the most recent backup, then exit
+poe2doctor --list-backups                                   # show the backup history
+poe2doctor --restore                                        # restore the most recent backup
+poe2doctor --restore poe2_production_Config.20260622-221251.ini.bak   # restore a specific one
 ```
+
+`--restore <file>` accepts a full path, a bare filename in the backup folder, or a filename shown by
+`--list-backups`.
 
 **On `--apply`, two things happen by default** (reverse them with the opt-out flags):
 

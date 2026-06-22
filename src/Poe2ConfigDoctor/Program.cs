@@ -25,23 +25,47 @@ if (options.Error is not null)
     return ExitError;
 }
 
-// --restore is a standalone mode: it doesn't need the log.
-if (options.Restore)
+// --list-backups and --restore are standalone modes: they don't need the log.
+if (options.ListBackups || options.Restore)
 {
-    var restoreConfigPath = options.ConfigPath ?? Locator.FindConfig();
-    if (restoreConfigPath is null)
+    var cfgPath = options.ConfigPath ?? Locator.FindConfig();
+    if (cfgPath is null)
     {
         Report.Error("Could not locate poe2_production_Config.ini. Pass it explicitly with --config <path>.");
         return ExitError;
     }
 
+    if (options.ListBackups)
+    {
+        Report.Title("PoE2 Config Doctor — backups");
+        Report.BackupList(cfgPath, BackupManager.List(cfgPath));
+        return ExitOk;
+    }
+
+    // --restore
     Report.Title("PoE2 Config Doctor — restore");
 
-    var backups = BackupManager.List(restoreConfigPath);
+    var backups = BackupManager.List(cfgPath);
     if (backups.Count == 0)
     {
-        Report.Error($"No backups found in {BackupManager.BackupDir(restoreConfigPath)}. Nothing to restore.");
+        Report.Error($"No backups found in {BackupManager.BackupDir(cfgPath)}. Nothing to restore.");
         return ExitError;
+    }
+
+    BackupInfo target;
+    if (options.RestoreTarget is { } wanted)
+    {
+        var resolved = BackupManager.Resolve(cfgPath, wanted);
+        if (resolved is null)
+        {
+            Report.Error($"No backup matching '{wanted}'. Use --list-backups to see what's available.");
+            return ExitError;
+        }
+        target = resolved;
+    }
+    else
+    {
+        target = backups[0];
     }
 
     if (!options.Force && IsGameRunning())
@@ -50,16 +74,16 @@ if (options.Restore)
         return ExitError;
     }
 
-    var latest = backups[0];
     // Snapshot the current file first so the restore is itself undoable.
-    if (!options.NoBackup && File.Exists(restoreConfigPath))
-        BackupManager.Create(restoreConfigPath, DateTime.Now, preRestore: true);
+    if (!options.NoBackup && File.Exists(cfgPath))
+        BackupManager.Create(cfgPath, DateTime.Now, preRestore: true);
 
-    File.Copy(latest.Path, restoreConfigPath, overwrite: true);
+    File.Copy(target.Path, cfgPath, overwrite: true);
     Console.WriteLine();
-    Report.Success($"Restored {restoreConfigPath}");
-    Report.Info($"  from backup: {latest.Path}");
-    Report.Info($"  ({backups.Count} backup(s) available; restored the most recent, {latest.Timestamp:yyyy-MM-dd HH:mm:ss})");
+    Report.Success($"Restored {cfgPath}");
+    Report.Info($"  from backup: {target.Path}");
+    var which = options.RestoreTarget is null ? "the most recent" : "the requested backup";
+    Report.Info($"  ({backups.Count} backup(s) available; restored {which}, {target.Timestamp:yyyy-MM-dd HH:mm:ss})");
     Report.Info("Launch the game on the restored settings.");
     return ExitOk;
 }
