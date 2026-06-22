@@ -18,6 +18,12 @@ public sealed class Options
     /// <summary>Apply even if the game appears to be running (it will clobber the file on exit).</summary>
     public bool Force { get; private set; }
 
+    /// <summary>Skip applying the safe baseline preset (baseline is applied by default on --apply).</summary>
+    public bool NoBaseline { get; private set; }
+
+    /// <summary>Skip clearing the shader cache (it is cleared by default on --apply).</summary>
+    public bool NoClearCache { get; private set; }
+
     /// <summary>How far back to consider issues. Default: 3 days.</summary>
     public TimeSpan Since { get; private set; } = TimeSpan.FromDays(3);
 
@@ -46,6 +52,12 @@ public sealed class Options
                     break;
                 case "--no-backup":
                     o.NoBackup = true;
+                    break;
+                case "--no-baseline":
+                    o.NoBaseline = true;
+                    break;
+                case "--no-clear-cache":
+                    o.NoClearCache = true;
                     break;
                 case "--force":
                     o.Force = true;
@@ -134,12 +146,15 @@ OPTIONS:
   --apply           Write the proposed changes (default: dry run, shows changes only)
   --tail <N>        Scan only the last N lines of the log (default: whole file)
   --no-backup       Do not create a .bak before writing
+  --no-baseline     Do not apply the safe baseline preset (it is applied by default)
+  --no-clear-cache  Do not clear the shader cache (it is cleared by default)
   --force           Apply even if the game appears to be running
   -h, --help        Show this help
 
 By default the tool looks at issues from the last 3 days. It only reports what it
-would change; re-run with --apply to write. Close the game before applying: it
-overwrites the config on exit.
+would change; re-run with --apply to write. On --apply it also applies the safe
+baseline preset and clears the shader cache unless you pass --no-baseline /
+--no-clear-cache. Close the game before applying: it overwrites the config on exit.
 """);
     }
 }

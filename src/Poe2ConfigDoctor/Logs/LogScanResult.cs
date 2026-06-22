@@ -13,6 +13,12 @@ public sealed class LogScanResult
     /// <summary>The last renderer the log shows being started (Vulkan / DirectX12 / DirectX11).</summary>
     public string? CurrentRenderer { get; init; }
 
+    /// <summary>The selected GPU adapter name from the log, if found.</summary>
+    public string? GpuName { get; init; }
+
+    /// <summary>Vendor derived from <see cref="GpuName"/>.</summary>
+    public Models.GpuVendor GpuVendor { get; init; }
+
     public DateTime? FirstTimestamp { get; init; }
     public DateTime? LastTimestamp { get; init; }
 

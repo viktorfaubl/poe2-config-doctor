@@ -86,11 +86,22 @@ but **don't exist** (`shadow_quality`, `streaming_cache_pool_size`, `fps_limit`,
 - **Windows:** High Performance power plan; set the PoE2 exe to "High Performance" GPU; keep game on NVMe/SSD; disable overlays if chasing crashes.
 - **Don't:** frame-gen DLL mods (OptiScaler) or process-manipulation tools (PoEUncrasher, Process Lasso) — ban risk / anti-cheat exposure.
 
-## Toward a `--baseline` mode in the tool
+## How the tool applies this (implemented)
 
-A future enhancement: `poe2doctor --baseline` would apply the **universally safe** subset above
-(GI off, particle culling on, HDR off, no upscaler+dynamic-res stacking, a sane VRR-aligned frame cap),
-while **leaving rig-specific keys (`renderer_type`, exact `texture_quality`) to the log-driven rules**.
-It would, like `--apply` today, back up the config first, refuse while the game is running, and print
-each change with its reason. The split matters: a baseline preset should never blindly pick a renderer
-or texture tier — those depend on what *your* hardware and log say.
+The baseline is **applied by default on `--apply`** — opt out with `--no-baseline`. The split between
+"baseline" and "rules" is deliberate:
+
+- **`FPS-LEVERS` rule** owns the FPS levers (`global_illumination_detail=0`, `use_dynamic_particle_culling2=true`)
+  and shows them under Findings.
+- **Baseline preset** owns the other safe defaults (`hdr=false`, `triple_buffering=false`,
+  `background_framerate_limit_enabled=true`, and `use_dynamic_resolution=false` when an upscaler is active).
+- **Rig-specific keys are never in the preset.** `renderer_type` and how far to drop `texture_quality`
+  come only from the log-driven `DX12-CRASH` / `VRAM-OOM` rules — a fixed preset must never blindly pick
+  a renderer or texture tier.
+- **Vendor-aware upscaler:** the GPU vendor is read from the log; if upscaling is *off*, the tool suggests
+  the matching method (NVIDIA→DLSS, AMD→FSR, Intel→XeSS). It never overrides an upscaler you already chose
+  and never sets DLSS on a non-NVIDIA card.
+
+Every run lists the not-yet-applied baseline items so you can see them before applying. `--apply` also
+backs up the config, refuses while the game is running, clears the shader cache (`--no-clear-cache` to
+skip), and prints each change with its reason.

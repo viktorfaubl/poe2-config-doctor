@@ -2,6 +2,7 @@
 using Poe2ConfigDoctor.Cli;
 using Poe2ConfigDoctor.Config;
 using Poe2ConfigDoctor.Logs;
+using Poe2ConfigDoctor.Maintenance;
 using Poe2ConfigDoctor.Models;
 using Poe2ConfigDoctor.Rules;
 
@@ -76,7 +77,7 @@ Report.LogSummary(scan);
 
 // 2. Run the rules against the log + current config.
 var config = IniConfig.Load(configPath);
-IRule[] rules = { new Dx12CrashRule(), new VramOomRule() };
+IRule[] rules = { new Dx12CrashRule(), new VramOomRule(), new FpsRule() };
 
 var findings = rules
     .Select(r => r.Evaluate(scan, config))
@@ -84,34 +85,33 @@ var findings = rules
     .Select(f => f!)
     .ToList();
 
-if (findings.Count == 0)
-{
-    Report.AllClear(scan.ScopeName);
-    return ExitOk;
-}
+Report.Findings(findings, scan.ScopeName);
 
-Report.Findings(findings);
+// Reactive (log/config rule) changes — always applied on --apply.
+var reactiveChanges = Dedupe(findings.SelectMany(f => f.Changes));
+var reactiveKeys = new HashSet<string>(reactiveChanges.Select(c => c.Key), StringComparer.OrdinalIgnoreCase);
 
-// Collect the changes (last-writer-wins per key — rules here don't overlap, but be safe).
-var changes = findings
-    .SelectMany(f => f.Changes)
-    .GroupBy(c => c.Key, StringComparer.OrdinalIgnoreCase)
-    .Select(g => g.Last())
+// Baseline changes — applied by default, minus anything a rule already covers.
+var baselineChanges = Baseline.Diff(config, scan.GpuVendor)
+    .Where(c => !reactiveKeys.Contains(c.Key))
     .ToList();
 
-if (changes.Count == 0)
-{
-    Console.WriteLine();
-    Report.Info("Issues detected, but no config changes apply (settings already minimized).");
-    return ExitFindings;
-}
+Report.BaselineSection(baselineChanges, willApply: !options.NoBaseline);
+
+var changesToApply = Dedupe(options.NoBaseline ? reactiveChanges : reactiveChanges.Concat(baselineChanges));
+bool willClearCache = !options.NoClearCache;
 
 // 3. Apply or report.
 if (!options.Apply)
 {
     Console.WriteLine();
-    Report.Info($"Dry run — nothing written. Re-run with --apply to make {changes.Count} change(s).");
-    return ExitFindings;
+    var cachePart = willClearCache ? " and clear the shader cache" : "";
+    if (changesToApply.Count == 0 && !willClearCache)
+        Report.Success($"Nothing to do — no findings in the {scan.ScopeName} and config matches baseline.");
+    else
+        Report.Info($"Dry run — nothing written. Re-run with --apply to make {changesToApply.Count} config change(s){cachePart}. "
+            + "Opt out with --no-baseline / --no-clear-cache.");
+    return changesToApply.Count > 0 ? ExitFindings : ExitOk;
 }
 
 if (!options.Force && IsGameRunning())
@@ -121,26 +121,44 @@ if (!options.Force && IsGameRunning())
     return ExitError;
 }
 
-if (!options.NoBackup)
-{
-    var backup = config.Backup();
-    Report.Info($"Backup written: {backup}");
-}
-
-int applied = 0;
-foreach (var change in changes)
-{
-    if (config.Set(Poe2Config.DisplaySection, change.Key, change.NewValue))
-        applied++;
-    else
-        Report.Warn($"Key '{change.Key}' not found in [{Poe2Config.DisplaySection}] — skipped.");
-}
-
-config.Save();
 Console.WriteLine();
-Report.Success($"Applied {applied} change(s) to {configPath}");
+
+// 3a. Config changes.
+if (changesToApply.Count > 0)
+{
+    if (!options.NoBackup)
+        Report.Info($"Backup written: {config.Backup()}");
+
+    int applied = 0;
+    foreach (var change in changesToApply)
+    {
+        if (config.Set(Poe2Config.DisplaySection, change.Key, change.NewValue))
+            applied++;
+        else
+            Report.Warn($"Key '{change.Key}' not found in [{Poe2Config.DisplaySection}] — skipped.");
+    }
+    config.Save();
+    Report.Success($"Applied {applied} config change(s) to {configPath}"
+        + (options.NoBaseline ? "" : " (incl. baseline)") + ".");
+}
+else
+{
+    Report.Info("No config changes needed.");
+}
+
+// 3b. Shader cache clear — default action on every --apply.
+if (willClearCache)
+    Report.CacheCleared(ShaderCacheCleaner.ClearAll());
+
+Console.WriteLine();
 Report.Info("Launch the game on the new settings — do not 'Apply' in the in-game menu, or it rewrites the config.");
 return ExitOk;
+
+static List<Poe2ConfigDoctor.Models.ConfigChange> Dedupe(IEnumerable<Poe2ConfigDoctor.Models.ConfigChange> changes) =>
+    changes
+        .GroupBy(c => c.Key, StringComparer.OrdinalIgnoreCase)
+        .Select(g => g.Last())
+        .ToList();
 
 static string FormatDuration(TimeSpan t) =>
     t.TotalDays >= 1 && t.TotalDays % 1 == 0 ? $"{t.TotalDays:0}d"

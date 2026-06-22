@@ -200,9 +200,16 @@ There is **no config key** that controls shader-cache size or shader precompilat
 
 ## What this tool covers vs. doesn't
 
-- **Covered today (🟢):** renderer crashes on DX12 (`DX12-CRASH`), VRAM exhaustion (`VRAM-OOM`).
-- **Candidate rules (🟡):** an FPS/baseline rule (GI off, particles, shadows), a stale-shader-cache cleaner, an engine-multithreading advisory, a long-session RAM-leak advisory, a disconnect attributor.
-- **Out of scope (🔵/⚪):** driver settings (shader cache size, HAGS, TDR, driver version) and OS settings (24H2, power plan) — the tool can *advise* on these but can't apply them, since they're not in the game config. Server-side disconnects and the post-0.3 RAM leak are GGG's to fix.
+- **Covered today (🟢):** renderer crashes on DX12 (`DX12-CRASH`), VRAM exhaustion (`VRAM-OOM`),
+  FPS levers (`FPS-LEVERS`: GI off + particle culling), a safe **baseline preset** applied by default on
+  `--apply`, and **shader-cache clearing** as a default `--apply` action (covers #3). GPU vendor is
+  detected and used for a vendor-correct upscaler suggestion.
+- **Candidate rules (🟡):** an engine-multithreading advisory, a long-session RAM-leak advisory (#6),
+  a HAGS advisory (#9), a disconnect attributor (#12 — the analyzer already tracks Device-Removed
+  proximity).
+- **Out of scope (🔵/⚪):** driver settings (shader cache size, HAGS, TDR, driver version) and OS settings
+  (24H2, power plan) — the tool can *advise* but can't apply them, since they're not in the game config.
+  Server-side disconnects and the post-0.3 RAM leak are GGG's to fix.
 
 See [`baseline-settings.md`](baseline-settings.md) for the recommended baseline config and the
 verified key reference.

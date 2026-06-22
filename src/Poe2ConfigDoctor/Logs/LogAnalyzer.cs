@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Poe2ConfigDoctor.Models;
 
 namespace Poe2ConfigDoctor.Logs;
 
@@ -22,6 +23,7 @@ public sealed partial class LogAnalyzer
         long lineCount = 0;
         int sessions = 0;
         string? currentRenderer = null;
+        string? gpuName = null;
         double? vramGb = null;
         string? lastDeviceRemovedReason = null;
         DateTime? firstTs = null, lastTs = null, lastOom = null, lastDeviceRemoved = null;
@@ -50,6 +52,27 @@ public sealed partial class LogAnalyzer
             int rendererIdx = line.IndexOf(RendererMarker, StringComparison.Ordinal);
             if (rendererIdx >= 0)
                 currentRenderer = line[(rendererIdx + RendererMarker.Length)..].Trim();
+
+            // GPU adapter: the "Found matching" line names the *selected* device (authoritative); fall
+            // back to the first non-software "Enumerated adapter:" line otherwise.
+            if (line.Contains("Found matching physical device", StringComparison.Ordinal)
+                || line.Contains("Found matching adapter", StringComparison.Ordinal))
+            {
+                var m = AdapterParenRegex().Match(line);
+                if (m.Success)
+                {
+                    var raw = m.Groups["name"].Value;
+                    int dash = raw.IndexOf(" - ", StringComparison.Ordinal); // strip " - <monitor>"
+                    gpuName = (dash > 0 ? raw[..dash] : raw).Trim();
+                }
+            }
+            else if (gpuName is null
+                && line.Contains("Enumerated adapter:", StringComparison.Ordinal)
+                && !line.Contains("Microsoft Basic Render Driver", StringComparison.Ordinal))
+            {
+                int idx = line.IndexOf("Enumerated adapter:", StringComparison.Ordinal);
+                gpuName = line[(idx + "Enumerated adapter:".Length)..].Trim();
+            }
 
             if (vramGb is null && line.Contains("Memory heap", StringComparison.Ordinal)
                 && line.Contains("DeviceLocal", StringComparison.Ordinal))
@@ -109,6 +132,8 @@ public sealed partial class LogAnalyzer
             TotalLines = lineCount,
             SessionCount = sessions,
             CurrentRenderer = currentRenderer,
+            GpuName = gpuName,
+            GpuVendor = GpuVendorExtensions.FromAdapterName(gpuName),
             FirstTimestamp = firstTs,
             LastTimestamp = lastTs,
             DeviceLocalVramGb = vramGb,
@@ -161,4 +186,7 @@ public sealed partial class LogAnalyzer
 
     [GeneratedRegex(@"Reason:\s*(?<reason>0x[0-9a-fA-F]+)")]
     private static partial Regex ReasonRegex();
+
+    [GeneratedRegex(@"\((?<name>[^)]+)\)")]
+    private static partial Regex AdapterParenRegex();
 }

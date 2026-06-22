@@ -1,4 +1,5 @@
 using Poe2ConfigDoctor.Logs;
+using Poe2ConfigDoctor.Maintenance;
 using Poe2ConfigDoctor.Models;
 
 namespace Poe2ConfigDoctor.Cli;
@@ -23,6 +24,8 @@ public static class Report
             Console.WriteLine($"  Span      : {a:yyyy-MM-dd HH:mm} -> {b:yyyy-MM-dd HH:mm}");
         if (s.CurrentRenderer is { } r)
             Console.WriteLine($"  Renderer  : {r} (last started)");
+        if (s.GpuName is { } g)
+            Console.WriteLine($"  GPU       : {g} [{s.GpuVendor}]");
         if (s.DeviceLocalVramGb is { } gb)
             Console.WriteLine($"  VRAM      : {gb:0.0} GB (DeviceLocal heap)");
 
@@ -39,13 +42,15 @@ public static class Report
                           $"Disconnect={c.AbnormalDisconnect}  ({scope})");
     }
 
-    public static void AllClear(string scopeName)
+    public static void Findings(IReadOnlyList<Finding> findings, string scopeName)
     {
-        Success($"No known issues found in the {scopeName}. Nothing to change.");
-    }
+        Console.WriteLine();
+        if (findings.Count == 0)
+        {
+            Success($"No crash / VRAM / FPS findings in the {scopeName}.");
+            return;
+        }
 
-    public static void Findings(IReadOnlyList<Finding> findings)
-    {
         WriteLine($"Findings ({findings.Count})", ConsoleColor.White);
         Console.WriteLine();
         foreach (var f in findings)
@@ -67,6 +72,41 @@ public static class Report
             }
             Console.WriteLine();
         }
+    }
+
+    public static void BaselineSection(IReadOnlyList<ConfigChange> changes, bool willApply)
+    {
+        Console.WriteLine();
+        WriteLine("Baseline (safe defaults)", ConsoleColor.White);
+        if (changes.Count == 0)
+        {
+            Info("  Config already matches the safe baseline.");
+            return;
+        }
+
+        var status = willApply ? "applied by default on --apply" : "SKIPPED (--no-baseline given)";
+        Console.WriteLine($"  {changes.Count} safe default(s) — {status}; opt out with --no-baseline:");
+        foreach (var c in changes)
+        {
+            Write("    -> ", ConsoleColor.Green);
+            Console.WriteLine($"{c.Key}: {c.OldValue ?? "(unset)"} => {c.NewValue}");
+            Console.WriteLine($"       {c.Reason}");
+        }
+    }
+
+    public static void CacheCleared(IReadOnlyList<CacheClearResult> results)
+    {
+        if (results.Count == 0)
+        {
+            Info("Shader cache: no cache folders found to clear.");
+            return;
+        }
+
+        var totalFiles = results.Sum(r => r.FilesDeleted);
+        var totalMb = results.Sum(r => r.BytesFreed) / 1024.0 / 1024.0;
+        Success($"Shader cache cleared: {totalFiles:n0} files, {totalMb:0.0} MB across {results.Count} folder(s) — rebuilds on next launch.");
+        foreach (var r in results)
+            Console.WriteLine($"    {r.Path}  ({r.FilesDeleted:n0} files)");
     }
 
     public static void Success(string text) => WriteLine(text, ConsoleColor.Green);

@@ -9,10 +9,15 @@ so it carries no anti-cheat risk.
 
 ## What it detects
 
-| Rule | Signature in the log | Fix applied |
-|------|----------------------|-------------|
+| Rule | Trigger | Fix applied |
+|------|---------|-------------|
 | **DX12-CRASH** | `[D3D12] Device Removed` (DXGI_ERROR_DEVICE_REMOVED), `Pipeline generation failed`, `Shader uses incorrect vertex layout`, `Abnormal disconnect` while on DirectX 12 | `renderer_type` → `Vulkan` |
 | **VRAM-OOM** | `[STREAMLINE] Error eWarnOutOfVRAM` (VRAM budget exceeded) | Trims the biggest VRAM consumers: `texture_quality` → Medium, `upscale_resolution` → Quality, `shadow_type` → Medium, `hdr` → false (each only if currently higher) |
+| **FPS-LEVERS** | Config not at the best FPS settings (PoE2 is CPU-bound) | `global_illumination_detail` → 0 (the #1 lever), `use_dynamic_particle_culling2` → true |
+
+The GPU vendor is read from the log (`Enumerated adapter` / `Found matching` lines) and shown in the
+summary; it's used to suggest the right upscaler (NVIDIA→DLSS, AMD→FSR, Intel→XeSS) — but only when
+upscaling is off, and an upscaler you already chose is never overridden.
 
 Detection is based on a **rolling time window — the last 3 days by default** — so a single
 trivial session (e.g. loading a hideout and quitting) can't hide problems from earlier in the
@@ -37,13 +42,24 @@ poe2doctor [options]
   --apply           Write the proposed changes (default: dry run, shows changes only)
   --tail <N>        Scan only the last N lines of the log (default: whole file)
   --no-backup       Do not create a .bak before writing
+  --no-baseline     Do not apply the safe baseline preset (applied by default)
+  --no-clear-cache  Do not clear the shader cache (cleared by default)
   --force           Apply even if the game appears to be running
   -h, --help        Show this help
 ```
 
-By default it performs a **dry run** — it prints what it would change and writes nothing.
-Re-run with `--apply` to make the changes. A `.bak` of the config is written first unless
-`--no-backup` is given.
+By default it performs a **dry run** — it prints what it would change (rule findings **and** the
+not-yet-applied baseline items) and writes nothing. Re-run with `--apply` to make the changes;
+a `.bak` of the config is written first unless `--no-backup` is given.
+
+**On `--apply`, two things happen by default** (reverse them with the opt-out flags):
+
+- **Baseline preset is applied** — safe defaults that broadly help: `hdr` → false,
+  `triple_buffering` → false, `background_framerate_limit_enabled` → true, and
+  `use_dynamic_resolution` → false when an upscaler is active. (`--no-baseline` to skip.) Rig-specific
+  keys — the renderer and how far to drop textures — are left to the log-driven rules, never the preset.
+- **Shader cache is cleared** — `%APPDATA%\Path of Exile 2\ShaderCache*` folders are emptied (the game
+  rebuilds them), which clears stale-cache stutter after patches/driver updates. (`--no-clear-cache` to skip.)
 
 **Close the game before applying** — PoE2 overwrites the config on exit, and changing the
 renderer in the in-game menu also rewrites the whole file (and silently resets some settings
