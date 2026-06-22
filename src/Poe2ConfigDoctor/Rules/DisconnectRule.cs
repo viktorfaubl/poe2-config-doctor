@@ -42,7 +42,7 @@ public sealed class DisconnectRule : IRule
         return new Finding
         {
             RuleId = Id,
-            Title = "Disconnects — likely causes",
+            Title = $"{disconnects.Count} disconnect(s): {cascade} GPU-crash cascade, {network} network/server-side",
             Severity = Severity.Info,
             Detail = $"{disconnects.Count} abnormal disconnect(s) in the {log.ScopeName}:\n    " + string.Join("\n    ", parts),
         };

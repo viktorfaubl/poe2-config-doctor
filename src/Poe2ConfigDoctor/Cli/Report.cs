@@ -82,6 +82,48 @@ public static class Report
         }
     }
 
+    /// <summary>
+    /// One compact, color-coded table of everything found: green APPLY rows (written on --apply),
+    /// yellow ADVISE rows (manual/driver fixes), and dimmed SKIP rows (baseline opted out).
+    /// </summary>
+    public static void SummaryTable(IReadOnlyList<Finding> findings, IReadOnlyList<ConfigChange> baselineChanges, bool applyBaseline)
+    {
+        var rows = new List<(string Action, ConsoleColor Color, string Rule, string What)>();
+
+        foreach (var f in findings)
+        {
+            if (f.Changes.Count > 0)
+                foreach (var c in f.Changes)
+                    rows.Add(("APPLY", ConsoleColor.Green, f.RuleId, $"{c.Key}: {c.OldValue ?? "(unset)"} -> {c.NewValue}"));
+            else
+                rows.Add(("ADVISE", ConsoleColor.Yellow, f.RuleId, f.Title));
+        }
+
+        foreach (var c in baselineChanges)
+            rows.Add((applyBaseline ? "APPLY" : "SKIP",
+                applyBaseline ? ConsoleColor.Green : ConsoleColor.DarkGray,
+                "BASELINE", $"{c.Key}: {c.OldValue ?? "(unset)"} -> {c.NewValue}"));
+
+        Console.WriteLine();
+        if (rows.Count == 0)
+        {
+            Success("Nothing to change and no advisories.");
+            return;
+        }
+
+        int wAction = Math.Max("ACTION".Length, rows.Max(r => r.Action.Length));
+        int wRule = Math.Max("RULE".Length, rows.Max(r => r.Rule.Length));
+        int wWhat = Math.Max("WHAT".Length, rows.Max(r => r.What.Length));
+
+        WriteLine($"  {"ACTION".PadRight(wAction)}  {"RULE".PadRight(wRule)}  {"WHAT".PadRight(wWhat)}", ConsoleColor.White);
+        Console.WriteLine($"  {new string('-', wAction)}  {new string('-', wRule)}  {new string('-', wWhat)}");
+        foreach (var r in rows)
+            WriteLine($"  {r.Action.PadRight(wAction)}  {r.Rule.PadRight(wRule)}  {r.What}", r.Color);
+
+        Console.WriteLine();
+        Info("  APPLY = written on --apply (green) · ADVISE = manual/driver fix (yellow) · run --details for full reasons");
+    }
+
     public static void BaselineSection(IReadOnlyList<ConfigChange> changes, bool willApply)
     {
         Console.WriteLine();

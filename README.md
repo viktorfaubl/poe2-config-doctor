@@ -52,6 +52,7 @@ poe2doctor [options]
   --all             Consider the entire log, ignoring the time window
   --session         Consider only the latest game session
   --apply           Write the proposed changes (default: dry run, shows changes only)
+  --details         Show full per-finding reasons/steps (default: compact table)
   --tail <N>        Scan only the last N lines of the log (default: whole file)
   --no-backup       Do not create a .bak before writing
   --no-baseline     Do not apply the safe baseline preset (applied by default)
@@ -60,8 +61,10 @@ poe2doctor [options]
   -h, --help        Show this help
 ```
 
-By default it performs a **dry run** — it prints what it would change (rule findings **and** the
-not-yet-applied baseline items) and writes nothing. Re-run with `--apply` to make the changes.
+By default it performs a **dry run** and prints a single compact table: green **APPLY** rows (config
+changes written on `--apply`), yellow **ADVISE** rows (manual/driver fixes), and dimmed **SKIP** rows
+(baseline opted out). Use `--details` for the full per-finding reasons and step-by-step instructions.
+Re-run with `--apply` to make the changes.
 
 **Backups & restore (safety net).** Before any write, the config is copied to a timestamped backup in
 a `poe2doctor-backups/` folder next to the config (unless `--no-backup`). Backups are never

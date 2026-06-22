@@ -153,8 +153,6 @@ var findings = rules
     .Select(f => f!)
     .ToList();
 
-Report.Findings(findings, scan.ScopeName);
-
 // Reactive (log/config rule) changes — always applied on --apply.
 var reactiveChanges = Dedupe(findings.SelectMany(f => f.Changes));
 var reactiveKeys = new HashSet<string>(reactiveChanges.Select(c => c.Key), StringComparer.OrdinalIgnoreCase);
@@ -164,7 +162,15 @@ var baselineChanges = Baseline.Diff(config, scan.GpuVendor)
     .Where(c => !reactiveKeys.Contains(c.Key))
     .ToList();
 
-Report.BaselineSection(baselineChanges, willApply: !options.NoBaseline);
+if (options.Details)
+{
+    Report.Findings(findings, scan.ScopeName);
+    Report.BaselineSection(baselineChanges, willApply: !options.NoBaseline);
+}
+else
+{
+    Report.SummaryTable(findings, baselineChanges, applyBaseline: !options.NoBaseline);
+}
 
 var changesToApply = Dedupe(options.NoBaseline ? reactiveChanges : reactiveChanges.Concat(baselineChanges));
 bool willClearCache = !options.NoClearCache;

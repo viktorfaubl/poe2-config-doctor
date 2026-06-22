@@ -33,6 +33,9 @@ public sealed class Options
     /// <summary>List available config backups, then exit.</summary>
     public bool ListBackups { get; private set; }
 
+    /// <summary>Show the full per-finding reasons/steps instead of the compact table.</summary>
+    public bool Details { get; private set; }
+
     /// <summary>How far back to consider issues. Default: 3 days.</summary>
     public TimeSpan Since { get; private set; } = TimeSpan.FromDays(3);
 
@@ -76,6 +79,9 @@ public sealed class Options
                     break;
                 case "--list-backups":
                     o.ListBackups = true;
+                    break;
+                case "--details":
+                    o.Details = true;
                     break;
                 case "--force":
                     o.Force = true;
@@ -163,6 +169,7 @@ OPTIONS:
   --session         Consider only the latest game session
   --apply           Write the proposed changes (default: dry run, shows changes only)
   --tail <N>        Scan only the last N lines of the log (default: whole file)
+  --details         Show full per-finding reasons/steps (default: compact table)
   --no-backup       Do not create a .bak before writing
   --no-baseline     Do not apply the safe baseline preset (it is applied by default)
   --no-clear-cache  Do not clear the shader cache (it is cleared by default)
