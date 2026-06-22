@@ -7,6 +7,28 @@ performance failures, and applies safe, explained fixes to the game's config fil
 It only ever edits the local config file — it never touches the game process or memory,
 so it carries no anti-cheat risk.
 
+## Download & run
+
+1. Download **`poe2doctor.exe`** from the [latest release](https://github.com/viktorfaubl/poe2-config-doctor/releases/latest). No install needed.
+2. **Close Path of Exile 2.**
+3. Open PowerShell in the download folder (Shift + Right-click the folder → **Open PowerShell window here**).
+4. **See what it would change** — read-only, changes nothing:
+   ```
+   .\poe2doctor.exe
+   ```
+5. **Apply the fixes** — backs up your config first:
+   ```
+   .\poe2doctor.exe --apply
+   ```
+6. **Undo anytime:**
+   ```
+   .\poe2doctor.exe --restore
+   ```
+
+Green **APPLY** rows are config changes the tool makes; yellow **ADVISE** rows are driver/Windows fixes
+to do yourself. Windows SmartScreen may warn on first run (the exe is unsigned) — click **More info →
+Run anyway**.
+
 ## What it detects
 
 | Rule | Trigger | Fix applied |
