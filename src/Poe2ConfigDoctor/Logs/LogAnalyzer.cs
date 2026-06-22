@@ -1,0 +1,148 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+
+namespace Poe2ConfigDoctor.Logs;
+
+/// <summary>
+/// Streams a Path of Exile 2 <c>Client.txt</c> and tallies the known failure signatures.
+/// Tracks both whole-log totals and the latest session (everything after the last "Game Start").
+/// </summary>
+public sealed partial class LogAnalyzer
+{
+    private const string GameStartMarker = "[STARTUP] Game Start";
+    private const string RendererMarker = "[RENDER] Starting device:";
+
+    public LogScanResult Analyze(string path, int tailLines = 0)
+    {
+        var total = new IssueCounts();
+        var latest = new IssueCounts();
+
+        long lineCount = 0;
+        int sessions = 0;
+        string? currentRenderer = null;
+        double? vramGb = null;
+        string? lastDeviceRemovedReason = null;
+        DateTime? firstTs = null, lastTs = null, lastOom = null, lastDeviceRemoved = null;
+
+        foreach (var line in ReadLines(path, tailLines))
+        {
+            lineCount++;
+
+            var ts = ParseTimestamp(line);
+            if (ts is not null)
+            {
+                firstTs ??= ts;
+                lastTs = ts;
+            }
+
+            // A new session resets the "latest session" counters.
+            if (line.Contains(GameStartMarker, StringComparison.Ordinal))
+            {
+                sessions++;
+                latest = new IssueCounts();
+            }
+
+            int rendererIdx = line.IndexOf(RendererMarker, StringComparison.Ordinal);
+            if (rendererIdx >= 0)
+                currentRenderer = line[(rendererIdx + RendererMarker.Length)..].Trim();
+
+            if (vramGb is null && line.Contains("Memory heap", StringComparison.Ordinal)
+                && line.Contains("DeviceLocal", StringComparison.Ordinal))
+            {
+                var m = HeapSizeRegex().Match(line);
+                if (m.Success && double.TryParse(m.Groups["gb"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var gb))
+                    vramGb = gb;
+            }
+
+            if (line.Contains("eWarnOutOfVRAM", StringComparison.Ordinal))
+            {
+                total.VramOom++; latest.VramOom++;
+                lastOom = ts ?? lastOom;
+            }
+
+            if (line.Contains("[D3D12] Device Removed", StringComparison.Ordinal))
+            {
+                total.Dx12DeviceRemoved++; latest.Dx12DeviceRemoved++;
+                lastDeviceRemoved = ts ?? lastDeviceRemoved;
+                var m = ReasonRegex().Match(line);
+                if (m.Success) lastDeviceRemovedReason = m.Groups["reason"].Value;
+            }
+
+            if (line.Contains("Pipeline generation failed", StringComparison.Ordinal))
+            {
+                total.PipelineGenerationFailed++; latest.PipelineGenerationFailed++;
+            }
+
+            if (line.Contains("Shader uses incorrect vertex layout", StringComparison.Ordinal))
+            {
+                total.ShaderVertexLayout++; latest.ShaderVertexLayout++;
+            }
+
+            if (line.Contains("Abnormal disconnect", StringComparison.Ordinal))
+            {
+                total.AbnormalDisconnect++; latest.AbnormalDisconnect++;
+            }
+        }
+
+        // If the log had no "Game Start" marker, the latest session is effectively the whole file.
+        if (sessions == 0)
+            latest = total;
+
+        return new LogScanResult
+        {
+            LogPath = path,
+            FileSizeBytes = new FileInfo(path).Length,
+            TotalLines = lineCount,
+            SessionCount = sessions,
+            CurrentRenderer = currentRenderer,
+            FirstTimestamp = firstTs,
+            LastTimestamp = lastTs,
+            DeviceLocalVramGb = vramGb,
+            LastDeviceRemovedReason = lastDeviceRemovedReason,
+            LastVramOomAt = lastOom,
+            LastDeviceRemovedAt = lastDeviceRemoved,
+            Total = total,
+            LatestSession = latest,
+        };
+    }
+
+    /// <summary>Streams lines, or only the last <paramref name="tailLines"/> if &gt; 0 (kept in a ring buffer).</summary>
+    private static IEnumerable<string> ReadLines(string path, int tailLines)
+    {
+        if (tailLines <= 0)
+            return File.ReadLines(path);
+
+        var ring = new string[tailLines];
+        int count = 0, head = 0;
+        foreach (var line in File.ReadLines(path))
+        {
+            ring[head] = line;
+            head = (head + 1) % tailLines;
+            count++;
+        }
+
+        int take = Math.Min(count, tailLines);
+        var result = new List<string>(take);
+        int start = count <= tailLines ? 0 : head;
+        for (int i = 0; i < take; i++)
+            result.Add(ring[(start + i) % tailLines]);
+        return result;
+    }
+
+    /// <summary>Lines start with "yyyy/MM/dd HH:mm:ss"; parse that prefix if present.</summary>
+    private static DateTime? ParseTimestamp(string line)
+    {
+        if (line.Length < 19) return null;
+        return DateTime.TryParseExact(
+            line.AsSpan(0, 19), "yyyy/MM/dd HH:mm:ss",
+            CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt)
+            ? dt
+            : null;
+    }
+
+    [GeneratedRegex(@"size\s*=\s*(?<gb>[0-9]+(?:\.[0-9]+)?)\s*GB", RegexOptions.IgnoreCase)]
+    private static partial Regex HeapSizeRegex();
+
+    [GeneratedRegex(@"Reason:\s*(?<reason>0x[0-9a-fA-F]+)")]
+    private static partial Regex ReasonRegex();
+}

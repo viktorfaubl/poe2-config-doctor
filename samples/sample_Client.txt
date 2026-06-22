@@ -1,0 +1,10 @@
+2026/06/22 19:31:11 857387968 bdfe0c38 [INFO Client 27740] [STARTUP] Game Start
+2026/06/22 19:31:11 857388015 62857a91 [INFO Client 27740] [RENDER] Starting device: DirectX12
+2026/06/22 19:31:12 857388921 81f514a4 [INFO Client 27740] [VULKAN] Memory heap: size = 7.84 GB, flags = { DeviceLocal }
+2026/06/22 19:31:35 857412328 2caa233f [DEBUG Client 27740] Generating level 79 area "MapEpitaph" with seed 1130024857
+2026/06/22 19:31:40 857416812 4cba6a95 [INFO Client 27740] [LOADING SCREEN] (Epitaph) Duration = 4.66044 seconds
+2026/06/22 19:32:21 857457593 337881d7 [CRIT Client 27740] [RENDER] Shader uses incorrect vertex layout (shader: 0x00000008 mesh: 0x00000000)
+2026/06/22 19:32:21 857457687 faf1bddd [CRIT Client 27740] [ENTITY2] [Metadata/Effects/.../on_act_fire_proj.trl] Pipeline generation failed. (Signature: "base.fxgraph")
+2026/06/22 19:33:05 857500000 4436e300 [CRIT Client 27740] [STREAMLINE] Error eWarnOutOfVRAM
+2026/06/22 19:34:30 857600000 e0a4d5b9 [CRIT Client 27740] [D3D12] Device Removed. Reason: 0x887a0005
+2026/06/22 19:34:55 857620000 2d8e8dd6 [INFO Client 27740] Abnormal disconnect: An unexpected disconnection occurred.

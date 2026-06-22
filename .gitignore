@@ -1,0 +1,17 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+# Local config backups produced by the tool
+*.bak
+
+# OS
+Thumbs.db
+.DS_Store
