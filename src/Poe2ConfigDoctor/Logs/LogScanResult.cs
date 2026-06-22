@@ -29,6 +29,18 @@ public sealed class LogScanResult
     public DateTime? LastVramOomAt { get; init; }
     public DateTime? LastDeviceRemovedAt { get; init; }
 
+    /// <summary>Hardware-accelerated GPU scheduling state from the log, if reported.</summary>
+    public bool? HagsEnabled { get; init; }
+
+    /// <summary>Timestamps of D3D12 Device-Removed events (whole log; rare).</summary>
+    public IReadOnlyList<DateTime> DeviceRemovedTimes { get; init; } = Array.Empty<DateTime>();
+
+    /// <summary>Timestamps of abnormal-disconnect events (whole log; rare).</summary>
+    public IReadOnlyList<DateTime> DisconnectTimes { get; init; } = Array.Empty<DateTime>();
+
+    /// <summary>Duration of the longest session whose end falls within the window.</summary>
+    public TimeSpan? LongestSessionInScope { get; init; }
+
     /// <summary>Counts across the whole log.</summary>
     public IssueCounts Total { get; init; } = new();
 

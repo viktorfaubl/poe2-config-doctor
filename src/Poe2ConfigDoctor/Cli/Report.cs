@@ -63,7 +63,8 @@ public static class Report
                 _ => ("INFO", ConsoleColor.Gray),
             };
             Write($"  [{label}] ", color);
-            WriteLine($"{f.Title}  ({f.RuleId})", ConsoleColor.White);
+            var tag = f.Changes.Count == 0 ? "  (advisory — no automatic change)" : "";
+            WriteLine($"{f.Title}  ({f.RuleId}){tag}", ConsoleColor.White);
             Console.WriteLine($"    {f.Detail}");
             foreach (var c in f.Changes)
             {

@@ -6,6 +6,9 @@ public static class Poe2Config
     /// <summary>All graphics keys this tool reads/writes live in the [DISPLAY] section.</summary>
     public const string DisplaySection = "DISPLAY";
 
+    /// <summary>Engine/general settings (e.g. engine_multithreading_mode) live in [GENERAL].</summary>
+    public const string GeneralSection = "GENERAL";
+
     public const string RendererType = "renderer_type";
     public const string TextureQuality = "texture_quality";
     public const string UpscaleResolution = "upscale_resolution";

@@ -19,6 +19,16 @@ The GPU vendor is read from the log (`Enumerated adapter` / `Found matching` lin
 summary; it's used to suggest the right upscaler (NVIDIA→DLSS, AMD→FSR, Intel→XeSS) — but only when
 upscaling is off, and an upscaler you already chose is never overridden.
 
+It also emits **advisories** — problems it detects in the log whose fix is a driver/OS or behavioral
+action it can't apply, so it just explains what to do:
+
+| Advisory | Trigger | Recommendation |
+|----------|---------|----------------|
+| **DISCONNECT** | `Abnormal disconnect` events | Attributes each as a GPU-crash cascade (near a Device-Removed) or network/server-side |
+| **ENGINE-MT** | Freezes/crashes while `engine_multithreading_mode=enabled` | A/B test `engine_multithreading_mode=disabled` |
+| **HAGS** | Crashes/freezes while the log shows HAGS enabled | Disable Hardware-accelerated GPU scheduling in Windows |
+| **LONG-SESSION** | A session spanning 2h+ | Watch for the post-0.3 RAM leak; restart periodically, check Task Manager |
+
 Detection is based on a **rolling time window — the last 3 days by default** — so a single
 trivial session (e.g. loading a hideout and quitting) can't hide problems from earlier in the
 week. Whole-log totals are always reported alongside the in-scope counts for context.

@@ -140,7 +140,11 @@ Report.LogSummary(scan);
 
 // 2. Run the rules against the log + current config.
 var config = IniConfig.Load(configPath);
-IRule[] rules = { new Dx12CrashRule(), new VramOomRule(), new FpsRule() };
+IRule[] rules =
+{
+    new Dx12CrashRule(), new VramOomRule(), new FpsRule(),
+    new DisconnectRule(), new EngineMultithreadingRule(), new HagsRule(), new LongSessionRule(),
+};
 
 var findings = rules
     .Select(r => r.Evaluate(scan, config))

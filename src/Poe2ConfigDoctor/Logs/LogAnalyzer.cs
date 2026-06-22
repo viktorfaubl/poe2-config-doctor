@@ -25,14 +25,21 @@ public sealed partial class LogAnalyzer
         string? currentRenderer = null;
         string? gpuName = null;
         double? vramGb = null;
+        bool? hagsEnabled = null;
         string? lastDeviceRemovedReason = null;
         DateTime? firstTs = null, lastTs = null, lastOom = null, lastDeviceRemoved = null;
+
+        var deviceRemovedTimes = new List<DateTime>();
+        var disconnectTimes = new List<DateTime>();
+        var sessionSpans = new List<(DateTime Start, DateTime End)>();
+        DateTime? curSessionStart = null;
 
         foreach (var line in ReadLines(path, tailLines))
         {
             lineCount++;
 
             var ts = ParseTimestamp(line);
+            var prevTs = lastTs; // last activity before this line — used to close a session span
             if (ts is not null)
             {
                 firstTs ??= ts;
@@ -42,12 +49,18 @@ public sealed partial class LogAnalyzer
             // Effective time for this line (carry the last seen timestamp for lines without one).
             bool inWindow = windowStart is null || (lastTs is { } e && e >= windowStart);
 
-            // A new session resets the "latest session" counters.
+            // A new session resets the "latest session" counters and closes the previous session span.
             if (line.Contains(GameStartMarker, StringComparison.Ordinal))
             {
                 sessions++;
                 latest = new IssueCounts();
+                if (curSessionStart is not null && prevTs is not null)
+                    sessionSpans.Add((curSessionStart.Value, prevTs.Value));
+                curSessionStart = ts ?? prevTs;
             }
+
+            if (hagsEnabled is null && line.Contains("Hardware-accelerated GPU scheduling:", StringComparison.Ordinal))
+                hagsEnabled = line.Contains("Enabled", StringComparison.OrdinalIgnoreCase);
 
             int rendererIdx = line.IndexOf(RendererMarker, StringComparison.Ordinal);
             if (rendererIdx >= 0)
@@ -94,6 +107,7 @@ public sealed partial class LogAnalyzer
                 total.Dx12DeviceRemoved++; latest.Dx12DeviceRemoved++;
                 if (inWindow) window.Dx12DeviceRemoved++;
                 lastDeviceRemoved = ts ?? lastDeviceRemoved;
+                if (lastTs is { } drt) deviceRemovedTimes.Add(drt);
                 var m = ReasonRegex().Match(line);
                 if (m.Success) lastDeviceRemovedReason = m.Groups["reason"].Value;
             }
@@ -114,7 +128,23 @@ public sealed partial class LogAnalyzer
             {
                 total.AbnormalDisconnect++; latest.AbnormalDisconnect++;
                 if (inWindow) window.AbnormalDisconnect++;
+                if (lastTs is { } dct) disconnectTimes.Add(dct);
             }
+        }
+
+        // Close the final (still-open) session, or treat the whole log as one session if no markers.
+        if (curSessionStart is not null && lastTs is not null)
+            sessionSpans.Add((curSessionStart.Value, lastTs.Value));
+        else if (sessionSpans.Count == 0 && firstTs is not null && lastTs is not null)
+            sessionSpans.Add((firstTs.Value, lastTs.Value));
+
+        TimeSpan? longestSessionInScope = null;
+        foreach (var (start, end) in sessionSpans)
+        {
+            if (windowStart is not null && end < windowStart) continue;
+            var duration = end - start;
+            if (longestSessionInScope is null || duration > longestSessionInScope)
+                longestSessionInScope = duration;
         }
 
         // If the log had no "Game Start" marker, the latest session is effectively the whole file.
@@ -140,6 +170,10 @@ public sealed partial class LogAnalyzer
             LastDeviceRemovedReason = lastDeviceRemovedReason,
             LastVramOomAt = lastOom,
             LastDeviceRemovedAt = lastDeviceRemoved,
+            HagsEnabled = hagsEnabled,
+            DeviceRemovedTimes = deviceRemovedTimes,
+            DisconnectTimes = disconnectTimes,
+            LongestSessionInScope = longestSessionInScope,
             Total = total,
             LatestSession = latest,
             Window = window,

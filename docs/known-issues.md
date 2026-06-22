@@ -200,16 +200,19 @@ There is **no config key** that controls shader-cache size or shader precompilat
 
 ## What this tool covers vs. doesn't
 
-- **Covered today (🟢):** renderer crashes on DX12 (`DX12-CRASH`), VRAM exhaustion (`VRAM-OOM`),
+- **Config fixes, applied (🟢):** renderer crashes on DX12 (`DX12-CRASH`), VRAM exhaustion (`VRAM-OOM`),
   FPS levers (`FPS-LEVERS`: GI off + particle culling), a safe **baseline preset** applied by default on
   `--apply`, and **shader-cache clearing** as a default `--apply` action (covers #3). GPU vendor is
   detected and used for a vendor-correct upscaler suggestion.
-- **Candidate rules (🟡):** an engine-multithreading advisory, a long-session RAM-leak advisory (#6),
-  a HAGS advisory (#9), a disconnect attributor (#12 — the analyzer already tracks Device-Removed
-  proximity).
-- **Out of scope (🔵/⚪):** driver settings (shader cache size, HAGS, TDR, driver version) and OS settings
-  (24H2, power plan) — the tool can *advise* but can't apply them, since they're not in the game config.
-  Server-side disconnects and the post-0.3 RAM leak are GGG's to fix.
+- **Advisories, detected & explained (🟡 → done):** the tool now finds the clue in the log and prints
+  how to fix it, even when the fix is a driver/OS action it can't apply:
+  - `DISCONNECT` (#12) — attributes each disconnect as GPU-crash cascade (near a Device-Removed) vs. network/server-side.
+  - `ENGINE-MT` (#8) — suggests A/B testing `engine_multithreading_mode=disabled` when freezes appear and it's enabled.
+  - `HAGS` (#9) — advises disabling Hardware-accelerated GPU scheduling when crashes appear and the log shows it on.
+  - `LONG-SESSION` (#6) — flags long sessions as a proxy for the post-0.3 RAM leak; advises restart + Task Manager check.
+- **Out of scope (🔵/⚪):** the *application* of driver settings (shader cache size, HAGS, TDR, driver version)
+  and OS settings (24H2, power plan) — the tool advises but can't apply them. Server-side disconnects and the
+  post-0.3 RAM leak are GGG's to fix.
 
 See [`baseline-settings.md`](baseline-settings.md) for the recommended baseline config and the
 verified key reference.
