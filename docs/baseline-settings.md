@@ -94,7 +94,8 @@ The baseline is **applied by default on `--apply`** — opt out with `--no-basel
 - **`FPS-LEVERS` rule** owns the FPS levers (`global_illumination_detail=0`, `use_dynamic_particle_culling2=true`)
   and shows them under Findings.
 - **Baseline preset** owns the other safe defaults (`hdr=false`, `triple_buffering=false`,
-  `background_framerate_limit_enabled=true`, and `use_dynamic_resolution=false` when an upscaler is active).
+  `background_framerate_limit_enabled=true`, `use_dynamic_resolution=false` when an upscaler is active, and
+  caps on `screenspace_effects` (≤1) and `bloom_strength` (≤0.25) — lowered only if currently higher, never raised).
 - **Rig-specific keys are never in the preset.** `renderer_type` and how far to drop `texture_quality`
   come only from the log-driven `DX12-CRASH` / `VRAM-OOM` rules — a fixed preset must never blindly pick
   a renderer or texture tier.

@@ -29,6 +29,12 @@ public static class Report
             Console.WriteLine($"  GPU       : {g} [{s.GpuVendor}]");
         if (s.DeviceLocalVramGb is { } gb)
             Console.WriteLine($"  VRAM      : {gb:0.0} GB (DeviceLocal heap)");
+        if (s.DriverVersion is { } dv)
+            Console.WriteLine($"  Driver    : {dv}" + (s.DistinctDriverVersions.Count > 1 ? $"  (changed: {string.Join(" -> ", s.DistinctDriverVersions)})" : ""));
+        if (s.WindowsBuild is { } wb)
+            Console.WriteLine($"  Windows   : build {wb}{(wb >= 26100 ? " (24H2)" : "")}");
+        if (s.HagsEnabled is { } hags)
+            Console.WriteLine($"  HAGS      : {(hags ? "Enabled" : "Disabled")}");
 
         WriteIssueLine("  Issues    ", s.Total, "whole log");
         if (!ReferenceEquals(s.Scope, s.Total))

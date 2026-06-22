@@ -1,3 +1,4 @@
+using System.Globalization;
 using Poe2ConfigDoctor.Models;
 
 namespace Poe2ConfigDoctor.Config;
@@ -11,6 +12,9 @@ public static class Baseline
 {
     private sealed record Setting(string Key, string Value, string Reason);
 
+    /// <summary>A numeric setting capped at a maximum — only lowered if currently higher, never raised.</summary>
+    private sealed record Cap(string Key, double Max, string Value, string Reason);
+
     private static readonly Setting[] Settings =
     {
         new("hdr", "false",
@@ -19,6 +23,14 @@ public static class Baseline
             "Unneeded with VRR + vsync off, and avoids added input latency."),
         new("background_framerate_limit_enabled", "true",
             "Cap GPU/CPU use when the game is alt-tabbed to the background."),
+    };
+
+    private static readonly Cap[] Caps =
+    {
+        new("screenspace_effects", 1, "1",
+            "Screen-space effects (SSR/SSAO) cost GPU time and add visual noise; cap at low."),
+        new("bloom_strength", 0.25, "0.25",
+            "Lower bloom reduces visual noise and a little GPU cost."),
     };
 
     /// <summary>
@@ -36,6 +48,15 @@ public static class Baseline
             if (current is null) continue; // don't add keys that aren't there
             if (!current.Equals(s.Value, StringComparison.OrdinalIgnoreCase))
                 changes.Add(new ConfigChange(s.Key, current, s.Value, s.Reason));
+        }
+
+        foreach (var cap in Caps)
+        {
+            var current = config.Get(Poe2Config.DisplaySection, cap.Key);
+            if (current is null) continue;
+            // Only lower a value that's above the cap; never raise it.
+            if (double.TryParse(current, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > cap.Max)
+                changes.Add(new ConfigChange(cap.Key, current, cap.Value, cap.Reason));
         }
 
         // Don't stack dynamic resolution on top of an upscaler.

@@ -26,6 +26,9 @@ public sealed partial class LogAnalyzer
         string? gpuName = null;
         double? vramGb = null;
         bool? hagsEnabled = null;
+        string? driverVersion = null;
+        int? windowsBuild = null;
+        var driverVersions = new List<string>();
         string? lastDeviceRemovedReason = null;
         DateTime? firstTs = null, lastTs = null, lastOom = null, lastDeviceRemoved = null;
 
@@ -61,6 +64,24 @@ public sealed partial class LogAnalyzer
 
             if (hagsEnabled is null && line.Contains("Hardware-accelerated GPU scheduling:", StringComparison.Ordinal))
                 hagsEnabled = line.Contains("Enabled", StringComparison.OrdinalIgnoreCase);
+
+            const string driverMarker = "Driver Version:";
+            int driverIdx = line.IndexOf(driverMarker, StringComparison.Ordinal);
+            if (driverIdx >= 0)
+            {
+                var v = line[(driverIdx + driverMarker.Length)..].Trim();
+                if (v.Length > 0)
+                {
+                    driverVersion = v;
+                    if (!driverVersions.Contains(v)) driverVersions.Add(v);
+                }
+            }
+
+            if (windowsBuild is null && line.Contains("Windows Version:", StringComparison.Ordinal))
+            {
+                var m = WindowsBuildRegex().Match(line);
+                if (m.Success && int.TryParse(m.Groups["b"].Value, out var b)) windowsBuild = b;
+            }
 
             int rendererIdx = line.IndexOf(RendererMarker, StringComparison.Ordinal);
             if (rendererIdx >= 0)
@@ -171,6 +192,9 @@ public sealed partial class LogAnalyzer
             LastVramOomAt = lastOom,
             LastDeviceRemovedAt = lastDeviceRemoved,
             HagsEnabled = hagsEnabled,
+            DriverVersion = driverVersion,
+            DistinctDriverVersions = driverVersions,
+            WindowsBuild = windowsBuild,
             DeviceRemovedTimes = deviceRemovedTimes,
             DisconnectTimes = disconnectTimes,
             LongestSessionInScope = longestSessionInScope,
@@ -223,4 +247,7 @@ public sealed partial class LogAnalyzer
 
     [GeneratedRegex(@"\((?<name>[^)]+)\)")]
     private static partial Regex AdapterParenRegex();
+
+    [GeneratedRegex(@"Build (?<b>\d+)")]
+    private static partial Regex WindowsBuildRegex();
 }

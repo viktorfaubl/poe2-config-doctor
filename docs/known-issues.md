@@ -33,12 +33,12 @@ as is OptiScaler-class frame-gen DLL injection (flagged as a ban risk in GGG for
 | 8 | Full client freezes / "Deadlock Detected" | Crash | 🟢/🔵 mix | partial |
 | 9 | HAGS conflicts | Crash/Stutter | 🔵 DRIVER/OS | advisory |
 | 10 | TDR device-reset timeout | Crash | 🔵 DRIVER/OS | — |
-| 11 | Driver-version-specific crashes | Crash | 🔵 DRIVER/OS | — |
-| 12 | "Unexpected disconnection" | Disconnect | ⚪ / 🟢 | diagnostic |
+| 11 | Driver-version-specific crashes | Crash | 🔵 DRIVER/OS | `DRIVER` advisory |
+| 12 | "Unexpected disconnection" | Disconnect | ⚪ / 🟢 | `DISCONNECT` |
 | 13 | CPU bottleneck in dense content | FPS | ⚪ / 🟡 | — |
-| 14 | Global Illumination cost (#1 FPS lever) | FPS | 🟡 CONFIG | candidate |
-| 15 | Particle/effect density (Breach/Ritual/bosses) | FPS | 🟡 CONFIG | candidate |
-| 16 | Windows 11 24H2 loading-screen freeze | OS | 🔵 DRIVER/OS | — |
+| 14 | Global Illumination cost (#1 FPS lever) | FPS | 🟡 CONFIG | `FPS-LEVERS` |
+| 15 | Particle/effect density (Breach/Ritual/bosses) | FPS | 🟡 CONFIG | `FPS-LEVERS` + baseline |
+| 16 | Windows 11 24H2 loading-screen freeze | OS | 🔵 DRIVER/OS | `WIN-24H2` advisory |
 
 \* File maintenance (deleting cache folders), not a config key — but a safe action the tool could automate.
 
@@ -135,6 +135,7 @@ as is OptiScaler-class frame-gen DLL injection (flagged as a ban risk in GGG for
 ### 11. Driver-version-specific crashes — 🔵 DRIVER/OS
 - **Symptom:** Crashes that start or stop with a specific GPU driver release.
 - **Findings (point-in-time; verify against current releases):** NVIDIA + Win11 24H2 — driver **572.16** cited as a fix (mixed reports). AMD — newer Adrenalin reportedly crashes; **25.8.1** cited as stable; one report blames a PoE2 Vulkan bug from 0.4 (switch API instead of downgrading). **Rule of thumb:** if crashes began right after a driver update, roll back.
+- **Tool:** `DRIVER` advisory — the analyzer captures the driver version per session; if it changed during the logged period and crashes appear, it advises rolling back.
 - **Sources:** GGG forum [3714578](https://www.pathofexile.com/forum/view-thread/3714578), [3885290](https://www.pathofexile.com/forum/view-thread/3885290/page/9).
 
 ### 12. "Unexpected disconnection occurred" — ⚪/🟢 (diagnostic)
@@ -168,13 +169,14 @@ as is OptiScaler-class frame-gen DLL injection (flagged as a ban risk in GGG for
 - **Symptom:** Worst FPS in screen-clearing endgame: Breach, Ritual, Expedition detonations, multi-particle bosses.
 - **Cause:** Effect/particle count overwhelms CPU-side submission.
 - **Fix:** Lower particle/effects quality; ensure **`use_dynamic_particle_culling2=true`** (note the literal `2`); lower `screenspace_effects`, `bloom_strength`.
-- **Tool:** Candidate for the baseline preset.
+- **Tool:** Covered — `FPS-LEVERS` sets `use_dynamic_particle_culling2=true`, and the baseline caps `screenspace_effects` (≤1) and `bloom_strength` (≤0.25), lowering them only if currently higher.
 - **Sources:** GGG perf guide [3852015](https://www.pathofexile.com/forum/view-thread/3852015).
 
 ### 16. Windows 11 24H2 loading-screen freeze — 🔵 DRIVER/OS
 - **Symptom:** During zone transitions, CPU pins 100%, full lock-up needing hard reboot. Not RAM exhaustion (users have 32–64 GB free). Hits AMD X3D notably.
 - **Cause:** Windows 11 **24H2** CPU-scheduling regression; absent on 23H2.
 - **Fix:** Revert to 23H2; or restrict PoE2 CPU affinity off CPU0/1 (OS-level, not process injection); disable Engine Multithreading; Windowed Fullscreen; Defender exception.
+- **Tool:** `WIN-24H2` advisory — fires when the log shows Windows build 26100+ (24H2) and crashes/freezes appear.
 - **Sources:** GGG forum [3603803](https://www.pathofexile.com/forum/view-thread/3603803).
 
 ---
@@ -202,16 +204,20 @@ There is **no config key** that controls shader-cache size or shader precompilat
 
 - **Config fixes, applied (🟢):** renderer crashes on DX12 (`DX12-CRASH`), VRAM exhaustion (`VRAM-OOM`),
   FPS levers (`FPS-LEVERS`: GI off + particle culling), a safe **baseline preset** applied by default on
-  `--apply`, and **shader-cache clearing** as a default `--apply` action (covers #3). GPU vendor is
-  detected and used for a vendor-correct upscaler suggestion.
-- **Advisories, detected & explained (🟡 → done):** the tool now finds the clue in the log and prints
-  how to fix it, even when the fix is a driver/OS action it can't apply:
+  `--apply` (incl. capping `screenspace_effects` ≤1 and `bloom_strength` ≤0.25 — #15), and **shader-cache
+  clearing** as a default `--apply` action (covers #3). GPU vendor is detected and used for a
+  vendor-correct upscaler suggestion.
+- **Advisories, detected & explained (🟡/🔵 → done):** the tool finds the clue in the log and prints how
+  to fix it, even when the fix is a driver/OS action it can't apply:
   - `DISCONNECT` (#12) — attributes each disconnect as GPU-crash cascade (near a Device-Removed) vs. network/server-side.
   - `ENGINE-MT` (#8) — suggests A/B testing `engine_multithreading_mode=disabled` when freezes appear and it's enabled.
   - `HAGS` (#9) — advises disabling Hardware-accelerated GPU scheduling when crashes appear and the log shows it on.
+  - `DRIVER` (#11) — advises a driver rollback when the driver version changed during the logged period and crashes appear.
+  - `WIN-24H2` (#16) — warns about the 24H2 loading-screen-freeze regression when the log shows build 26100+ and crashes appear.
   - `LONG-SESSION` (#6) — flags long sessions as a proxy for the post-0.3 RAM leak; advises restart + Task Manager check.
-- **Out of scope (🔵/⚪):** the *application* of driver settings (shader cache size, HAGS, TDR, driver version)
-  and OS settings (24H2, power plan) — the tool advises but can't apply them. Server-side disconnects and the
+- **Still out of scope (🔵/⚪):** NVIDIA shader-cache-size (#2) and the TDR/`TdrDelay` tweak (#10) — driver/OS
+  settings with no log signal to trigger on; #1 first-encounter hitch and #13 CPU bottleneck (inherent/GGG);
+  and the *application* of any driver/OS setting the advisories recommend. Server-side disconnects and the
   post-0.3 RAM leak are GGG's to fix.
 
 See [`baseline-settings.md`](baseline-settings.md) for the recommended baseline config and the

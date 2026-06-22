@@ -27,6 +27,8 @@ action it can't apply, so it just explains what to do:
 | **DISCONNECT** | `Abnormal disconnect` events | Attributes each as a GPU-crash cascade (near a Device-Removed) or network/server-side |
 | **ENGINE-MT** | Freezes/crashes while `engine_multithreading_mode=enabled` | A/B test `engine_multithreading_mode=disabled` |
 | **HAGS** | Crashes/freezes while the log shows HAGS enabled | Disable Hardware-accelerated GPU scheduling in Windows |
+| **DRIVER** | Crashes after the GPU driver version changed mid-log | Roll back to the previous driver |
+| **WIN-24H2** | Crashes on Windows 11 build 26100+ (24H2) | The 24H2 freeze regression + mitigations |
 | **LONG-SESSION** | A session spanning 2h+ | Watch for the post-0.3 RAM leak; restart periodically, check Task Manager |
 
 Detection is based on a **rolling time window — the last 3 days by default** — so a single
@@ -78,9 +80,10 @@ poe2doctor --restore poe2_production_Config.20260622-221251.ini.bak   # restore 
 **On `--apply`, two things happen by default** (reverse them with the opt-out flags):
 
 - **Baseline preset is applied** — safe defaults that broadly help: `hdr` → false,
-  `triple_buffering` → false, `background_framerate_limit_enabled` → true, and
-  `use_dynamic_resolution` → false when an upscaler is active. (`--no-baseline` to skip.) Rig-specific
-  keys — the renderer and how far to drop textures — are left to the log-driven rules, never the preset.
+  `triple_buffering` → false, `background_framerate_limit_enabled` → true,
+  `use_dynamic_resolution` → false when an upscaler is active, and caps on `screenspace_effects` (≤1)
+  and `bloom_strength` (≤0.25), lowered only if higher. (`--no-baseline` to skip.) Rig-specific keys —
+  the renderer and how far to drop textures — are left to the log-driven rules, never the preset.
 - **Shader cache is cleared** — `%APPDATA%\Path of Exile 2\ShaderCache*` folders are emptied (the game
   rebuilds them), which clears stale-cache stutter after patches/driver updates. (`--no-clear-cache` to skip.)
 

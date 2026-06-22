@@ -143,7 +143,8 @@ var config = IniConfig.Load(configPath);
 IRule[] rules =
 {
     new Dx12CrashRule(), new VramOomRule(), new FpsRule(),
-    new DisconnectRule(), new EngineMultithreadingRule(), new HagsRule(), new LongSessionRule(),
+    new DisconnectRule(), new EngineMultithreadingRule(), new HagsRule(),
+    new DriverChangeRule(), new Windows24H2Rule(), new LongSessionRule(),
 };
 
 var findings = rules

@@ -32,6 +32,15 @@ public sealed class LogScanResult
     /// <summary>Hardware-accelerated GPU scheduling state from the log, if reported.</summary>
     public bool? HagsEnabled { get; init; }
 
+    /// <summary>Most recent GPU driver version string from the log, if reported.</summary>
+    public string? DriverVersion { get; init; }
+
+    /// <summary>Distinct driver versions seen in the log, in first-seen order (>1 means a driver changed).</summary>
+    public IReadOnlyList<string> DistinctDriverVersions { get; init; } = Array.Empty<string>();
+
+    /// <summary>Windows build number from the log, if reported (26100+ = Windows 11 24H2).</summary>
+    public int? WindowsBuild { get; init; }
+
     /// <summary>Timestamps of D3D12 Device-Removed events (whole log; rare).</summary>
     public IReadOnlyList<DateTime> DeviceRemovedTimes { get; init; } = Array.Empty<DateTime>();
 
