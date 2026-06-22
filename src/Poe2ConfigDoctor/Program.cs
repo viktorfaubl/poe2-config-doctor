@@ -25,6 +25,45 @@ if (options.Error is not null)
     return ExitError;
 }
 
+// --restore is a standalone mode: it doesn't need the log.
+if (options.Restore)
+{
+    var restoreConfigPath = options.ConfigPath ?? Locator.FindConfig();
+    if (restoreConfigPath is null)
+    {
+        Report.Error("Could not locate poe2_production_Config.ini. Pass it explicitly with --config <path>.");
+        return ExitError;
+    }
+
+    Report.Title("PoE2 Config Doctor — restore");
+
+    var backups = BackupManager.List(restoreConfigPath);
+    if (backups.Count == 0)
+    {
+        Report.Error($"No backups found in {BackupManager.BackupDir(restoreConfigPath)}. Nothing to restore.");
+        return ExitError;
+    }
+
+    if (!options.Force && IsGameRunning())
+    {
+        Report.Error("Path of Exile 2 appears to be running. Close it first (it overwrites the config on exit), or pass --force.");
+        return ExitError;
+    }
+
+    var latest = backups[0];
+    // Snapshot the current file first so the restore is itself undoable.
+    if (!options.NoBackup && File.Exists(restoreConfigPath))
+        BackupManager.Create(restoreConfigPath, DateTime.Now, preRestore: true);
+
+    File.Copy(latest.Path, restoreConfigPath, overwrite: true);
+    Console.WriteLine();
+    Report.Success($"Restored {restoreConfigPath}");
+    Report.Info($"  from backup: {latest.Path}");
+    Report.Info($"  ({backups.Count} backup(s) available; restored the most recent, {latest.Timestamp:yyyy-MM-dd HH:mm:ss})");
+    Report.Info("Launch the game on the restored settings.");
+    return ExitOk;
+}
+
 // Resolve the log.
 var logPath = options.LogPath ?? Locator.FindLog();
 if (logPath is null)
@@ -127,7 +166,7 @@ Console.WriteLine();
 if (changesToApply.Count > 0)
 {
     if (!options.NoBackup)
-        Report.Info($"Backup written: {config.Backup()}");
+        Report.Info($"Backup written: {BackupManager.Create(configPath, DateTime.Now).Path}");
 
     int applied = 0;
     foreach (var change in changesToApply)

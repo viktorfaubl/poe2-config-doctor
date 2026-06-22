@@ -11,6 +11,7 @@
 
 # Local config backups produced by the tool
 *.bak
+poe2doctor-backups/
 
 # OS
 Thumbs.db

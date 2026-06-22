@@ -49,8 +49,16 @@ poe2doctor [options]
 ```
 
 By default it performs a **dry run** — it prints what it would change (rule findings **and** the
-not-yet-applied baseline items) and writes nothing. Re-run with `--apply` to make the changes;
-a `.bak` of the config is written first unless `--no-backup` is given.
+not-yet-applied baseline items) and writes nothing. Re-run with `--apply` to make the changes.
+
+**Backups & restore (safety net).** Before any write, the config is copied to a timestamped backup in
+a `poe2doctor-backups/` folder next to the config (unless `--no-backup`). Backups are never
+overwritten, so the original always survives. To roll back, run `--restore` — it restores the most
+recent backup over the config (snapshotting the current file first, so the restore is itself undoable):
+
+```sh
+poe2doctor --restore        # restore the most recent backup, then exit
+```
 
 **On `--apply`, two things happen by default** (reverse them with the opt-out flags):
 

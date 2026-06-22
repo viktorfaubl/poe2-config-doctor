@@ -51,14 +51,6 @@ public sealed class IniConfig
         return false;
     }
 
-    /// <summary>Copies the file to "&lt;path&gt;.bak" (overwriting any prior backup) and returns the backup path.</summary>
-    public string Backup()
-    {
-        var backupPath = Path + ".bak";
-        File.Copy(Path, backupPath, overwrite: true);
-        return backupPath;
-    }
-
     public void Save() => File.WriteAllLines(Path, _lines);
 
     private static bool TryGetSection(string line, out string section)

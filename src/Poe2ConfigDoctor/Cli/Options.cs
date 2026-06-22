@@ -24,6 +24,9 @@ public sealed class Options
     /// <summary>Skip clearing the shader cache (it is cleared by default on --apply).</summary>
     public bool NoClearCache { get; private set; }
 
+    /// <summary>Restore the config from the most recent backup, then exit.</summary>
+    public bool Restore { get; private set; }
+
     /// <summary>How far back to consider issues. Default: 3 days.</summary>
     public TimeSpan Since { get; private set; } = TimeSpan.FromDays(3);
 
@@ -58,6 +61,9 @@ public sealed class Options
                     break;
                 case "--no-clear-cache":
                     o.NoClearCache = true;
+                    break;
+                case "--restore":
+                    o.Restore = true;
                     break;
                 case "--force":
                     o.Force = true;
@@ -148,6 +154,7 @@ OPTIONS:
   --no-backup       Do not create a .bak before writing
   --no-baseline     Do not apply the safe baseline preset (it is applied by default)
   --no-clear-cache  Do not clear the shader cache (it is cleared by default)
+  --restore         Restore the config from the most recent backup, then exit
   --force           Apply even if the game appears to be running
   -h, --help        Show this help
 
