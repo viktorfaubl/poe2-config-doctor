@@ -99,6 +99,14 @@ dotnet run -c Release --project src/Poe2ConfigDoctor -- \
 
 Adding a new rule is just a new `IRule` implementation registered in `Program.cs`.
 
+## Documentation
+
+- [`docs/known-issues.md`](docs/known-issues.md) — catalog of documented PoE2 performance problems
+  (stutter, VRAM, crashes, CPU/FPS, disconnects) with cited solutions, each tagged by whether this
+  tool can fix it, whether it's a driver/OS setting, or whether only GGG can.
+- [`docs/baseline-settings.md`](docs/baseline-settings.md) — recommended safe baseline config with
+  rationale and trade-offs, a verified config-key reference, and a list of fabricated keys to avoid.
+
 ## Background
 
 Born out of debugging stutter and hard freezes on an RTX 3060 Ti (8 GB) at 1440p: the game's
